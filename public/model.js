@@ -184,6 +184,7 @@ export const NODE_SCHEMA =
         ins: [
             { name: 'clock', default: 0 },
             { name: 'gateT', default: 0.1 },
+            { name: 'pat', default: 0 }
         ],
         outs: [],
         params: [],
@@ -273,6 +274,7 @@ export const NODE_SCHEMA =
         ins: [
             { name: 'clock', default: 0 },
             { name: 'gateT', default: 0.1 },
+            { name: 'pat', default: 0 }
         ],
         outs: ['freq', 'gate'],
         params: [],

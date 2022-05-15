@@ -661,41 +661,26 @@ class Sequencer extends AudioNode
      * Takes the current time and clock signal as input.
      * Produces frequency and gate signals as output.
      */
-    update(time, clock, gateTime)
+    update(time, clock, gateTime, pat)
     {
         if (!this.clockSgn && clock > 0)
         {
             // If we are at the beginning of a new sequencer step
             if (this.clockCnt == 0)
             {
-                var grid = this.state.patterns[this.patIdx];
-
-                this.clockCnt = music.CLOCK_PPS;
-                var stepIdx = this.nextStep % grid.length;
-                this.nextStep++;
-
-                // Send the current step back to the main thread
-                this.send({
-                    type: 'SET_CUR_STEP',
-                    nodeId: this.nodeId,
-                    stepIdx: stepIdx
-                });
-
-                // For each row
-                for (var rowIdx = 0; rowIdx < grid[stepIdx].length; ++rowIdx)
+                // If this is the first step of this pattern
+                var stepIdx = this.nextStep;
+                if (stepIdx === 0)
                 {
-                    if (!grid[stepIdx][rowIdx])
-                        continue
-
-                    // Trigger this row
-                    this.trigRow(rowIdx, time);
-                }
-
-                // If this is the last step of this pattern
-                if (stepIdx === grid.length - 1)
-                {
-                    this.nextStep = 0;
-
+                    if (pat >= 1)
+                    {
+                        var patNum = ((pat | 0) - 1);
+                        if (patNum > 7) patNum = 3;
+                        if (patNum != this.nextPat)
+                        {
+                            this.queuePattern(patNum, this.state.patterns[patNum]);
+                        }
+                    }
                     if (this.nextPat !== undefined)
                     {
                         // Send the pattern change to the main thread
@@ -708,6 +693,35 @@ class Sequencer extends AudioNode
                         // Move to the next pattern
                         this.patIdx = this.nextPat;
                         this.nextPat = undefined;
+                    }
+                }
+                
+                var grid = this.state.patterns[this.patIdx];
+                if (grid === null)
+                {
+                    // If the pattern is uninitialized (blank), wait one default pattern length
+                    this.clockCnt = music.CLOCK_PPS * 16;
+                }
+                else
+                {
+                    this.clockCnt = music.CLOCK_PPS;
+                    this.nextStep = (stepIdx + 1) % grid.length;
+
+                    // Send the current step back to the main thread
+                    this.send({
+                        type: 'SET_CUR_STEP',
+                        nodeId: this.nodeId,
+                        stepIdx: stepIdx
+                    });
+
+                    // For each row
+                    for (var rowIdx = 0; rowIdx < grid[stepIdx].length; ++rowIdx)
+                    {
+                        if (!grid[stepIdx][rowIdx])
+                            continue
+
+                        // Trigger this row
+                        this.trigRow(rowIdx, time);
                     }
                 }
             }
@@ -782,9 +796,9 @@ class MonoSeq extends Sequencer
      * Takes the current time and clock signal as input.
      * Produces frequency and gate signals as output.
      */
-    update(time, clock, gateTime)
+    update(time, clock, gateTime, pat)
     {
-        Sequencer.prototype.update.call(this, time, clock, gateTime);
+        Sequencer.prototype.update.call(this, time, clock, gateTime, pat);
 
         assert (!isNaN(this.freq), 'MonoSeq freq is NaN');
 
@@ -874,9 +888,9 @@ class GateSeq extends Sequencer
      * Takes the current time and clock signal as input.
      * Produces frequency and gate signals as output.
      */
-    update(time, clock, gateTime)
+    update(time, clock, gateTime, pat)
     {
-        Sequencer.prototype.update.call(this, time, clock, gateTime);
+        Sequencer.prototype.update.call(this, time, clock, gateTime, pat);
 
         // For each row
         for (let i = 0; i < this.numRows; ++i)
